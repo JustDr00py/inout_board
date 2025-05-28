@@ -271,6 +271,24 @@ def show_login_page():
     - Track employee status: In, Out, Lunch, Meeting, WFH
     """)
 
+def sort_employees(employees_dict, sort_by="name", sort_order="asc"):
+    """Sort employees dictionary by specified criteria"""
+    if sort_by == "name":
+        sorted_items = sorted(employees_dict.items(), key=lambda x: x[0].lower())
+    elif sort_by == "status":
+        sorted_items = sorted(employees_dict.items(), key=lambda x: x[1]['status'])
+    elif sort_by == "department":
+        sorted_items = sorted(employees_dict.items(), key=lambda x: x[1].get('department', '').lower())
+    elif sort_by == "last_updated":
+        sorted_items = sorted(employees_dict.items(), key=lambda x: x[1]['last_updated'])
+    else:
+        sorted_items = list(employees_dict.items())
+    
+    if sort_order == "desc":
+        sorted_items.reverse()
+    
+    return dict(sorted_items)
+
 def show_main_app():
     """Show the main application for authenticated users"""
     username = st.session_state.username
@@ -498,6 +516,31 @@ def show_main_app():
             else:
                 dept_filter = []
         
+        # Sorting options
+        st.subheader("📊 Sort Options")
+        sort_col1, sort_col2 = st.columns(2)
+        
+        with sort_col1:
+            sort_by = st.selectbox(
+                "Sort by",
+                options=["name", "status", "department", "last_updated"],
+                format_func=lambda x: {
+                    "name": "Name (A-Z)",
+                    "status": "Status",
+                    "department": "Department",
+                    "last_updated": "Last Updated"
+                }[x],
+                help="Choose how to sort the employee list"
+            )
+        
+        with sort_col2:
+            sort_order = st.selectbox(
+                "Sort order",
+                options=["asc", "desc"],
+                format_func=lambda x: "Ascending (A-Z)" if x == "asc" else "Descending (Z-A)",
+                help="Choose the sort direction"
+            )
+        
         st.markdown("---")
         
         # Employee cards
@@ -520,21 +563,34 @@ def show_main_app():
                 
             filtered_employees[name] = info
         
+        # Apply sorting
+        sorted_employees = sort_employees(filtered_employees, sort_by, sort_order)
+        
         # Show search results info
         if search_term:
-            if filtered_employees:
-                st.info(f"🔍 Found {len(filtered_employees)} employee(s) matching '{search_term}'")
+            if sorted_employees:
+                st.info(f"🔍 Found {len(sorted_employees)} employee(s) matching '{search_term}' (sorted by {sort_by})")
             else:
                 st.warning(f"🔍 No employees found matching '{search_term}'")
+        else:
+            if sorted_employees:
+                sort_desc = {
+                    "name": "Name",
+                    "status": "Status", 
+                    "department": "Department",
+                    "last_updated": "Last Updated"
+                }[sort_by]
+                order_desc = "ascending" if sort_order == "asc" else "descending"
+                st.info(f"📊 Showing {len(sorted_employees)} employee(s) sorted by {sort_desc} ({order_desc})")
         
-        if not filtered_employees:
+        if not sorted_employees:
             if search_term:
                 st.info("Try adjusting your search term or filters.")
             else:
                 st.info("No employees match the current filters.")
         else:
             # Create employee cards
-            for i, (name, info) in enumerate(filtered_employees.items()):
+            for i, (name, info) in enumerate(sorted_employees.items()):
                 with st.container():
                     col1, col2, col3, col4, col5 = st.columns([2, 1, 2, 2, 1])
                     
